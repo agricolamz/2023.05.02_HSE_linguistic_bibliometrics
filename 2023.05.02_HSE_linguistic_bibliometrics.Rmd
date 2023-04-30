@@ -51,7 +51,7 @@ knitr::include_graphics("images/02_landscape_by_year.png")
 knitr::include_graphics("images/03_covid.png")
 ```
 
-Covid-19 region of the map. Colours are assigned using labels based on paper titles. Unlabeled Covid papers are shown in the background in gray. This region in the embedding also contained some non-Covid papers (~15%) about other respiratory epidemics; they are not shown.
+Covid-19 region of the map. Colours are assigned using labels based on paper titles. Unlabeled Covid papers are shown in the background in gray. This region in the embedding also contained some non-Covid papers (~15%) about other respiratory epidemics, they are not shown.
 
 ##  [@gonzalez23]
 
@@ -120,9 +120,9 @@ knitr::include_graphics("images/08_helsenki.png")
 
 ## Journal lists
 
-After we gathered journal lists we annotated them according to personal beliefs on what is linguistics, and what is not (tags: `linguistics` (232); `interdisciplinary` (203); `language_learning` (26) and some others).
+After we gathered journal lists we annotated them according to personal beliefs on what is linguistics, and what is not (tags: `linguistics` (232), `interdisciplinary` (203), `language_learning` (26) and some others).
 
-There is also a side-project on annotation of journals for literature science (tags: `literary_studies` (168); `interdisciplinary` (253); `philology` (12) and some others).
+There is also a side-project on annotation of journals for literature science (tags: `literary_studies` (168), `interdisciplinary` (253), `philology` (12) and some others).
 
 ```{r}
 journals <- readxl::read_xlsx("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/abcd_list_annotated.xlsx")
@@ -148,8 +148,8 @@ journals |>
 ## Abstracts extraction
 
 >- We planed to scrap all papers' metadata from the journals' web-pages
->- Then we discovered the `crossref` database and the `rcrossref` package [@chamberlain22] for R
->- Then we discovered the `openalex` database and the `openalexR` package [@aria23] for R
+>- Then we discovered the `Crossref` database and the `rcrossref` package [@chamberlain22] for R
+>- Then we discovered the `OpenAlex` database and the `openalexR` package [@aria23] for R
 
 ## Abstracts extraction: scrapping journal web-pages
 
@@ -166,7 +166,63 @@ Since journals can be grouped by the publishers it is possible to write a web-sc
 knitr::include_graphics("images/09_russian_linguistics.png")
 ```
 
+## Abstracts extraction: `Crossref`
+
+[`Crossref`](https://www.crossref.org/) is a digital object identifier (DOI) Registration Agency that provide an API to their database. [`Crossref`](https://www.crossref.org/) does not provide a full text or abstracts of papers, however at the begining we used it in order to gather papers' metadata.
+
+The last change of the pipeline for gathering data (30.04.2023) made this database non-relevant to the project.
+
+## Abstracts extraction: `OpenAlex`
+
+[`OpenAlex`](https://openalex.org) is a free and open catalog of the world's scholarly papers, researchers, journals, and institutions. [`OpenAlex`](https://openalex.org) provide free well-documented API that make it possible to download all journal papers' metadata and abstracts using a list of journals' ISSNs (40 lines of R code). 
+
+In the further work we will discuss the result based on `r list.files("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/openalex2") |> length()` linguistic journals downloaded from [`OpenAlex`](https://openalex.org).
+
+The main advantage of the [`OpenAlex`](https://openalex.org) database is that they provide a `concept` information for each paper.
+
+## Abstracts extraction: `OpenAlex` concepts
+
+Magnusson, E., Nauclér, K. (1993). The development of linguistic awareness in language-disordered children. First language, 13(37), 93--111.
+
+\scriptsize
+
+This paper concerns the development of linguistic awareness in language-disordered children, and the role of linguistic and cognitive factors in this development. A longitudinal study was conducted with 39 language-disordered and a matched group of 39 normally-speaking children. Phonological awareness and other abilities were tested from preschool to Grade 4. Various comparisons were made of the abilities of the two groups. The findings indicate the importance of language comprehension and of syntactic production, but not of phonology, for the development of phonological awareness.
+
+```{r}
+tibble(concepts = c("Linguistics", "Psychology", "Language development", "Philosophy"),
+       level = c(1, 0, 2, 0),
+       score = c(0.7674719, 0.557679, 0.55760396, 0.15057558)) |> 
+  kable() |> 
+  kable_styling(position = "center")
+```
+
+
+## Abstracts extraction: `OpenAlex` concepts
+
+Arkadiev, P. M. (2023). Finiteness in morphology and syntax: Evidence from Abaza. Voprosy Jazykoznanija, (1), 103--131.
+
+\scriptsize
+
+The article surveys morphological and syntactic ramifi cations of finiteness and nonfiniteness of verbal forms in the polysynthetic Abaza language (Northwest Caucasian, Karachay-Cherkessia). In Abaza, a whole range of morphological phenomena exhibit more or less robust correlations with dependent resp. subordinate status of the clause. However, I show that none of these phenomena can be treated as an unequivocal indicator of (non)finiteness, paying particular attention to several types of verbal forms that combine morphological features of both finiteness and nonfiniteness. Hypotheses motivating these “paradoxical” constellations of properties are put forward.
+
+```{r}
+tibble(concepts = c("Syntax", "Linguistics", "Morphology (biology)", "Range (aeronautics)", "Psychology", "Morpheme", "Mathematics", "Philosophy", "Biology", "Genetics", "Materials science", "Composite material"),
+       level = c(2, 1, 2, 2, 0, 2, 0, 0, 0, 1, 0, 1),
+       score = c(0.79727054, 0.7173848, 0.66336954, 0.49566996, 0.47231838, 0.45996267, 0.34355098, 0.23823005, 0.08018643, 0, 0, 0)) |> 
+  kable() |> 
+  kable_styling(position = "center")
+```
+
+## Abstracts extraction: `OpenAlex` concepts
+
+OpenAlex has about 65k concepts that are listed in [this spreadshit](https://docs.google.com/spreadsheets/d/1LBFHjPt4rj_9r0t0TTAlT68NwOtNH8Z21lBMsJDMoZg/edit#gid=575855905). Concepts are hierarchical and are stored in six layers. It is modified version of the similar tree made in [@shen18] (based on Microsoft Academic Graph [@sinha15]).
+
+Each work is tagged by a classifier with multiple concepts, based on the title, abstract, and the journal name. The classifier was trained on corpus of Microsoft Academic Graph.
+
 # Data analysis
+
+## Data structure
+
 
 # Conclussions
 
