@@ -1,7 +1,7 @@
 ---
 title: "What do we know about linguistic journals?"
 subtitle: "Applying NLP methods to a dataset of abstracts from linguistic journals (work in progress)"
-author: "George Moroz, Asya Alekseeva, Timofei Dedov, Artem Orekhov, Kirill Sidorov, Angelina Stepanova"
+author: "George Moroz, Asya Alekseeva, Timofei Dedov, Artyom Orekhov, Kirill Sidorov, Angelina Stepanova"
 date: "2 May 2023"
 output: 
   beamer_presentation:
@@ -88,6 +88,18 @@ AI generated picture
 - use them in order to create some space of linguistic publications (one dot -- one publication)
 - see how linguistic journals are distributed within this space
 
+# Our team
+
+## Our team
+
+- conceptualization: George Moroz, Boris Orekhov
+- team leadership: George Moroz, Asya Alekseeva, Kirill Sidorov
+- data curation, data analysis: George Moroz
+- data gathering and annotation:
+    - DH masters: Kirill Sidorov and Artyom Orekhov
+    - bachelor students: Asya Alekseeva, Timofei Dedov and Angelina Stepanova
+    - group of bachelor students who choose this project as a summer practice (2-week internship)
+
 # Data collection
 
 ## Journal lists
@@ -108,11 +120,11 @@ knitr::include_graphics("images/08_helsenki.png")
 
 ## Journal lists
 
-After we gathered journal lists we annotated them according to our beliefs on what is linguistics, and what is not.
+After we gathered journal lists we annotated them according to personal beliefs on what is linguistics, and what is not (tags: `linguistics` (232); `interdisciplinary` (203); `language_learning` (26) and some others).
 
-There is also a side-project on annotation of journals for literature science.
+There is also a side-project on annotation of journals for literature science (tags: `literary_studies` (168); `interdisciplinary` (253); `philology` (12) and some others).
 
-```{r, fig.align='center'}
+```{r}
 journals <- readxl::read_xlsx("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/abcd_list_annotated.xlsx")
 
 linguistics <- journals |> filter(linguistics == "linguistics") |> nrow()
@@ -122,7 +134,7 @@ not_annotated_journals <- journals |> filter(is.na(linguistics)) |> nrow()
 
 After manual annotation `r linguistics` (`r round(linguistics/annotated_journals*100)`%) journals out of `r annotated_journals` have tag `linguistics`. `r not_annotated_journals` journals have not yet been annotated.
 
-```{r, fig.align='center'}
+```{r}
 journals |> 
   filter(linguistics == "linguistics") |>
   count(hse_level, helsenki_level)  |> 
@@ -135,6 +147,25 @@ journals |>
 
 ## Abstracts extraction
 
+>- We planed to scrap all papers' metadata from the journals' web-pages
+>- Then we discovered the `crossref` database and the `rcrossref` package [@chamberlain22] for R
+>- Then we discovered the `openalex` database and the `openalexR` package [@aria23] for R
+
+## Abstracts extraction: scrapping journal web-pages
+
+Since journals can be grouped by the publishers it is possible to write a web-scrapper for the group of journals from one publisher. However there were some problems:
+
+- blocking the IP address
+- a lot of old publication are digitized in the form of a pdf of the first page of the paper
+- change of the name and ISSN\footnote[frame]{ISSN (International Standard Serial Number) ---  eight-digit serial number used to uniquely identify a serial publication.} of the journal
+- change of the publisher of the journal
+- there are still some mistakes on the journal websites
+
+```{r, out.width='60%'}
+# https://doi.org/10.1007/BF02743731
+knitr::include_graphics("images/09_russian_linguistics.png")
+```
+
 # Data analysis
 
 # Conclussions
@@ -142,3 +173,5 @@ journals |>
 ## {}
 
 \LARGE Thank you for your attention!
+
+# References {.allowframebreaks}
