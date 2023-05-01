@@ -24,6 +24,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dev='cairo
 # setwd("/home/agricolamz/work/materials/2023.05.02_HSE_linguistic_bibliometrics")
 library(tidyverse)
 library(kableExtra)
+theme_set(theme_minimal()+theme(text = element_text(size = 16), legend.position = "bottom"))
 ```
 
 #  Introduction
@@ -156,8 +157,8 @@ journals |>
 Since journals can be grouped by the publishers it is possible to write a web-scrapper for the group of journals from one publisher. However there were some problems:
 
 - blocking the IP address
-- a lot of old publication are digitized in the form of a pdf of the first page of the paper
-- change of the name and ISSN\footnote[frame]{ISSN (International Standard Serial Number) ---  eight-digit serial number used to uniquely identify a serial publication.} of the journal
+- a lot of old publication are digitized in the form of the first page pdf
+- change of the title and ISSN\footnote[frame]{ISSN (International Standard Serial Number) ---  eight-digit serial number used to uniquely identify a serial publication.} of the journal
 - change of the publisher of the journal
 - there are still some mistakes on the journal websites
 
@@ -219,12 +220,198 @@ OpenAlex has about 65k concepts that are listed in [this spreadshit](https://doc
 
 Each work is tagged by a classifier with multiple concepts, based on the title, abstract, and the journal name. The classifier was trained on corpus of Microsoft Academic Graph.
 
-# Data analysis
+# Descriptive statistics
 
-## Data structure
+```{r}
+path <- "/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/openalex2"
+files <- str_c(list.files(path, full.names = TRUE), "/", list.files(path), ".csv")
+map(files, function(x){
+  read_csv(x, col_types = list(publication_year = "c", 
+                               first_page = "c", 
+                               last_page = "c", 
+                               volume = "c", 
+                               issue = "c", 
+                               is_retracted = "c", 
+                               cited_by_count = "c"), 
+           show_col_types = FALSE)
+}) |> 
+  list_rbind() ->
+  database
 
+non_cleaned_database_rows <- nrow(database)
+non_cleaned_database_cols <- ncol(database)
+```
+
+## Data structure: `r non_cleaned_database_rows` rows and `r non_cleaned_database_cols` columns
+
+- `id`: https://openalex.org/W3040611730
+- `doi`: https://doi.org/10.1075/fol.18056.dob
+- `author`: Nina Dobrushina 
+- `title`: Negation in complement clauses of fear-verbs 
+- `publication_year`: 2021
+- `journal`: Functions of Language
+- `issn_l`: 0929-998X
+- `first_page`: 121
+- `last_page`: 152 
+- `volume`: 28 
+- `issue`: 2
+- `is_retracted`: FALSE
+- `cited_by_count`: 1
+- `abstract`: \tiny Complement clauses of verbs of fear often contain expletive negation, which is negative marking without negative meaning. <...> \normalsize
+- `concepts`: \tiny Negation; Complement (music); Linguistics; Verb; Meaning (existential); Psychology; Mathematics; Computer science; Philosophy; Biochemistry; Chemistry; Complementation; Psychotherapist; Gene; Phenotype \normalsize
+- `tags_level`: 2; 5; 1; 2; 2; 0; 0; 0; 0; 1; 0; 4; 1; 2; 3
+- `tags_score`: 0.90950537; 0.85906583; 0.7152109; 0.6710381; 0.53753835; 0.37817067; 0.36315864; 0.33024567; 0.17123953; 0; 0; 0; 0; 0; 0
+- `retrieved`: 30-04-2023
+- `source`: openalex 
+
+```{r}
+database |> 
+  filter(!is.na(abstract),
+         cld2::detect_language(abstract) == "en",
+         cld2::detect_language(title) == "en") ->
+  database
+
+cleaned_database_rows <- nrow(database)
+```
+
+## Data cleaning
+
+Let's analyze:
+
+- papers with title and abstracts in English (remove `r non_cleaned_database_rows - cleaned_database_rows`)
+- non-retracted papers (remove `r database |> filter(as.logical(is_retracted)) |> nrow()`)
+- papers with journal affiliation (remove `r database |> filter(is.na(journal)) |> nrow()`)
+- papers with authors (remove `r database |> filter(is.na(author)) |> nrow()`)
+
+
+```{r}
+database |> 
+  filter(!as.logical(is_retracted),
+         !is.na(journal),
+         !is.na(author)) |> 
+  mutate(publication_year = as.double(publication_year),
+         cited_by_count = as.double(cited_by_count)) ->
+  database
+```
+
+## Papers by year
+
+```{r, out.width='100%'}
+database |> 
+  ggplot(aes(publication_year))+
+  geom_histogram()+
+  labs(x = "publication year")
+```
+
+## Papers by year (publication year < 1925)
+
+```{r, out.width='100%'}
+database |> 
+  filter(publication_year < 1925) |> 
+  mutate(publication_year = as.double(publication_year)) |> 
+  ggplot(aes(publication_year, fill = journal))+
+  geom_histogram()+
+  labs(x = "publication year", fill = "")+
+  theme(legend.text = element_text(size=9))
+```
+
+## Number of authors
+
+```{r, out.width='80%', out.height='60%'}
+database |> 
+  mutate(n_authors = str_count(author, ";")+1) |>
+  count(n_authors) |> 
+  ggplot(aes(n_authors, n))+
+  geom_col()+
+  scale_y_log10()+
+  labs(x = "number of authors", y = "number of papers (log scale)")
+```
+
+As we see, there is a limit for maximum number of authors. There are two papers with 100 authors:
+
+>- [Looking Backward, Looking Forward: MLA Members Speak](https://www.cambridge.org/core/journals/pmla/article/abs/looking-backward-looking-forward-mla-members-speak/9527D6E4D060B6B99BEFF3954392CED8) [@alliston00] and ...
+>- [Universal Dependencies](https://direct.mit.edu/coli/article/47/2/255/98516/Universal-Dependencies) [@marneffe21]
+
+## Number of citations
+
+\tiny
+```{r}
+database |>  
+  arrange(-cited_by_count) |> 
+  slice_head(n = 15) |> 
+  rename(year = publication_year) |>
+  mutate(author2 = str_split(author, ";") |> map(1) |>  unlist(),
+         author = ifelse(str_detect(author, ";"), str_c(author2, " et al."), author),
+         title = str_remove(title, "\\<sup\\>\\*\\</sup\\>")) |> 
+  select(author, year, title) |> 
+  kable()
+```
+
+\normalsize
+
+- *The Art of Case Study Research* [@stake95], *Introduction to Functional Grammar* [@halliday85], *The art of hearing data* [@rubin95], *Principles of Language Learning and Teaching*, *Interpreting Qualitative Data Methods for Analysing Talk, Text and Interaction*, *Principles and Practice in Second Language Acquisition* are actually books. However the DOIs lead to reviews.
+- duplicates with different DOI, see [@sacks78]
+
+## Number of citations by author
+
+```{r, out.width='85%'}
+database |> 
+  select(author, cited_by_count) |> 
+  mutate(author = str_split(author, "; ")) |> 
+  unnest_longer(author) |> 
+  group_by(author) |> 
+  summarise(sum = sum(cited_by_count)) |> 
+  arrange(-sum) |>
+  slice_head(n = 20) |> 
+  mutate(author = fct_reorder(author, sum)) |> 
+  ggplot(aes(sum, author))+
+  geom_col()+
+  labs(x = "sum of citations", y = "")
+```
+
+- Non-unified names
+    - Peter M. Arkadiev vs. Peter Arkadiev;
+    - Martin Haspelmath vs. Haspelmath Martin
+- Some people are stored in a weird way: Michael E Daniel 
+
+# East Caucasian case study
+
+## Abstracts contain *East Caucasian*, *Dag(h)estan*, *Lezgic*, *Andic*, *Nakh*, or *Tsezic*
+
+```{r, out.width='100%'}
+database |> 
+  filter(str_detect(abstract, "(East Caucasian)|(Dagh?estan)|(Lezgic)|(Andic)|(Nakh)|(Tsezic)")) |> 
+  distinct(author, title, publication_year, journal) |> 
+  ggplot(aes(publication_year))+
+  geom_histogram()+
+  labs(x = "publication year")
+```
+
+## Abstracts contain *East Caucasian*, *Dag(h)estan*, *Lezgic*, *Andic*, *Nakh*, or *Tsezic*
+
+```{r, out.width='100%'}
+database |> 
+  filter(str_detect(abstract, "(East Caucasian)|(Daghestanian)|(Dagestanian)|(Daghestan)|(Dagestan)|(Lezgic)|(Andic)|(Nakh)|(Tsezic)")) |> 
+  distinct(author, title, publication_year, journal) |> 
+  mutate(author = str_split(author, "; ")) |> 
+  unnest_longer(author) |> 
+  count(author) |> 
+  filter(n > 1) |> 
+  mutate(author = fct_reorder(author, n)) |> 
+  ggplot(aes(n, author))+
+  geom_col()+
+  labs(x = "number of publications (n > 1)", y = "")
+```
+
+# The landscape of linguistic research?
 
 # Conclussions
+
+## Conclussions
+
+>- We still need to annotate a lot of journals
+>- Unfortunately journal annotation should be crosschecked
+>- We can not generalize knowledge gathered from journals on the whole field: it is universities who make us think that books and chapters in volumes are not significant
 
 ## {}
 
