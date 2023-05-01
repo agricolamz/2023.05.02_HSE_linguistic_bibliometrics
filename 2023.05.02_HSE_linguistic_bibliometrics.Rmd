@@ -23,6 +23,8 @@ editor_options:
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, dev='cairo_pdf', fig.align='center', fig.show='hold')
 # setwd("/home/agricolamz/work/materials/2023.05.02_HSE_linguistic_bibliometrics")
 library(tidyverse)
+library(tidytext)
+library(stopwords)
 library(kableExtra)
 theme_set(theme_minimal()+theme(text = element_text(size = 16), legend.position = "bottom"))
 ```
@@ -277,8 +279,6 @@ database |>
   database
 
 cleaned_database_rows <- nrow(database)
-
-
 ```
 
 ## Data cleaning
@@ -290,8 +290,7 @@ Let's analyze:
 - papers with journal affiliation (remove `r database |> filter(is.na(journal)) |> nrow()`)
 - papers with authors (remove `r database |> filter(is.na(author)) |> nrow()`)
 - papers with abstracts longer then 250 symbols (remove `r database |> filter(abstract_length < 250) |> nrow()`)
-- papers with abstracts with "No Access" note (remove `r database |> filter(str_detect(abstract, "No Access")) |> nrow()`)
-
+- papers with abstracts with "No Access" and "Research Article|" notes (remove `r database |> filter(str_detect(abstract, "No Access") | str_detect(abstract, "^Research Article\\|")) |> nrow()`)
 
 \footnotesize
 > Previous articleNext article No AccessPhonology of Alaskan Eskimo, Kuskokwim DialectAnthony MattinaAnthony Mattina Search for more articles by this author PDFPDF PLUS Add to favoritesDownload CitationTrack CitationsPermissionsReprints Share onFacebookTwitterLinkedInRedditEmail SectionsMoreDetailsFiguresReferencesCited by International Journal of American Linguistics Volume 36, Number 1Jan., 1970 Article DOIhttps://doi.org/10.1086/465087 Views: 4Total views on this site PDF download Crossref reports no articles citing this article.
@@ -302,7 +301,8 @@ database |>
          !is.na(journal),
          !is.na(author),
          abstract_length >= 250,
-         !str_detect(abstract, "No Access")) |> 
+         !str_detect(abstract, "No Access"),
+         !str_detect(abstract, "^Research Article\\|")) |> 
   mutate(publication_year = as.double(publication_year),
          cited_by_count = as.double(cited_by_count)) ->
   database
@@ -391,6 +391,34 @@ database |>
     - Martin Haspelmath vs. Haspelmath Martin
 - Some people are stored in a weird way: Michael E Daniel 
 
+## Search through the abstracts
+
+```{r, out.width='100%'}
+database %>% 
+  mutate(id = str_remove(id, "https://openalex.org/"),
+         journal = tolower(journal)) |>
+  distinct(journal, abstract) |> 
+  mutate(pied_piping = str_extract(abstract, "[Pp]ied-[Pp]iping"),
+         lingua_franca = str_extract(abstract, "[Ll]ingua [Ff]ranca"),
+         pharyngealization = str_extract(abstract, "[Pp]haryngealization")) |> 
+  pivot_longer(names_to = "remove", values_to = "tokens", pied_piping:pharyngealization) |> 
+  na.omit() |> 
+  mutate(tokens = tolower(tokens),
+         journal = str_trunc(journal, 20, "right")) |> 
+  count(journal, tokens) |> 
+  arrange(-n) |> 
+  group_by(tokens) |> 
+  slice_head(n = 10) |> 
+  filter(n > 1) |> 
+  mutate(journal = reorder_within(journal, n, tokens)) |> 
+  ggplot(aes(n, journal))+
+  geom_col()+
+  facet_wrap(~tokens, scales = "free")+
+  scale_y_reordered()+
+  labs(x = "", y = "")
+```
+
+
 # East Caucasian case study
 
 ## Abstracts contain *East Caucasian*, *Dag(h)estan*, *Lezgic*, *Andic*, *Nakh*, or *Tsezic*
@@ -421,6 +449,47 @@ database |>
 ```
 
 # The landscape of linguistic research?
+
+
+## 5 keywords gathered by TF-IDF
+
+\tiny
+
+```{r, include=FALSE}
+map(stopwords_getsources()[-c(3, 6, 8)], function(i){
+  print(i)
+  stopwords(language = "en", source = i)
+}) %>% 
+  unlist() %>% 
+  unique() %>% 
+  sort() ->
+  stopwords_en
+```
+
+
+```{r}
+database %>% 
+  mutate(id = str_remove(id, "https://openalex.org/"),
+         journal = tolower(journal)) |>
+  distinct(id, journal, abstract) |> 
+  unnest_tokens(input = abstract, output = "word") |> 
+  anti_join(tibble(word = stopwords_en)) |>  
+  filter(str_detect(word, "[A-z]"))  |> 
+  count(journal, word) |> 
+  filter(n > 5) |> 
+  bind_tf_idf(term = word, journal, n) |> 
+  arrange(desc(tf_idf)) %>% 
+  group_by(journal) %>% 
+  slice(1:5) |> 
+  filter(n > 100) |> 
+  add_count(journal) |> 
+  filter(nn == 5) |> 
+  group_by(journal) |> 
+  summarise(keywords = str_c(word, collapse = "; ")) |> 
+  filter(nchar(journal) <= 50) |> 
+  kable()
+```
+
 
 # Conclussions
 
