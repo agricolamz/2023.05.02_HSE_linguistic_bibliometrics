@@ -238,6 +238,8 @@ map(files, function(x){
   list_rbind() ->
   database
 
+rm(path, files)
+
 non_cleaned_database_rows <- nrow(database)
 non_cleaned_database_cols <- ncol(database)
 ```
@@ -266,12 +268,17 @@ non_cleaned_database_cols <- ncol(database)
 
 ```{r}
 database |> 
+  mutate(abstract = str_remove(abstract, "^Abstract "),
+         abstract = str_remove(abstract, "^ABSTRACT "),
+         abstract_length = nchar(abstract)) |> 
   filter(!is.na(abstract),
          cld2::detect_language(abstract) == "en",
          cld2::detect_language(title) == "en") ->
   database
 
 cleaned_database_rows <- nrow(database)
+
+
 ```
 
 ## Data cleaning
@@ -282,17 +289,27 @@ Let's analyze:
 - non-retracted papers (remove `r database |> filter(as.logical(is_retracted)) |> nrow()`)
 - papers with journal affiliation (remove `r database |> filter(is.na(journal)) |> nrow()`)
 - papers with authors (remove `r database |> filter(is.na(author)) |> nrow()`)
+- papers with abstracts longer then 250 symbols (remove `r database |> filter(abstract_length < 250) |> nrow()`)
+- papers with abstracts with "No Access" note (remove `r database |> filter(str_detect(abstract, "No Access")) |> nrow()`)
 
+
+\footnotesize
+> Previous articleNext article No AccessPhonology of Alaskan Eskimo, Kuskokwim DialectAnthony MattinaAnthony Mattina Search for more articles by this author PDFPDF PLUS Add to favoritesDownload CitationTrack CitationsPermissionsReprints Share onFacebookTwitterLinkedInRedditEmail SectionsMoreDetailsFiguresReferencesCited by International Journal of American Linguistics Volume 36, Number 1Jan., 1970 Article DOIhttps://doi.org/10.1086/465087 Views: 4Total views on this site PDF download Crossref reports no articles citing this article.
 
 ```{r}
 database |> 
   filter(!as.logical(is_retracted),
          !is.na(journal),
-         !is.na(author)) |> 
+         !is.na(author),
+         abstract_length >= 250,
+         !str_detect(abstract, "No Access")) |> 
   mutate(publication_year = as.double(publication_year),
          cited_by_count = as.double(cited_by_count)) ->
   database
 ```
+
+\normalsize
+Remaining dataset consists of `r nrow(database)` papers.
 
 ## Papers by year
 
@@ -315,7 +332,7 @@ database |>
   theme(legend.text = element_text(size=9))
 ```
 
-## Number of authors
+## Number of citations
 
 ```{r, out.width='80%', out.height='60%'}
 database |> 
@@ -332,7 +349,7 @@ As we see, there is a limit for maximum number of authors. There are two papers 
 >- [Looking Backward, Looking Forward: MLA Members Speak](https://www.cambridge.org/core/journals/pmla/article/abs/looking-backward-looking-forward-mla-members-speak/9527D6E4D060B6B99BEFF3954392CED8) [@alliston00] and ...
 >- [Universal Dependencies](https://direct.mit.edu/coli/article/47/2/255/98516/Universal-Dependencies) [@marneffe21]
 
-## Number of citations
+## The most cited so-called "papers"
 
 \tiny
 ```{r}
@@ -352,7 +369,7 @@ database |>
 - *The Art of Case Study Research* [@stake95], *Introduction to Functional Grammar* [@halliday85], *The art of hearing data* [@rubin95], *Principles of Language Learning and Teaching*, *Interpreting Qualitative Data Methods for Analysing Talk, Text and Interaction*, *Principles and Practice in Second Language Acquisition* are actually books. However the DOIs lead to reviews.
 - duplicates with different DOI, see [@sacks78]
 
-## Number of citations by author
+## The most cited authors
 
 ```{r, out.width='85%'}
 database |> 
