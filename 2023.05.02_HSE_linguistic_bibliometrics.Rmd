@@ -456,7 +456,11 @@ database |>
 
 ## TF-IDF
 
+TF-IDF (term frequency–inverse document frequency) is a measure that is intended to reflect how important a word is to a document in a collection or corpus.
 
+TF (term frequency) is a frequency of a unit. For instance if a unit appears *n* times in a text of length *m*, then TF value is $\frac{n}{m}$. 
+
+IDF (inverse document frequency) is a measure of how much information the word provides. If a unit appears in *j* documents of the collection of *k* documents, then IDF is $\log_{10}{\frac{j}{k}}$.
 
 ## 5 keywords gathered by TF-IDF
 
@@ -497,30 +501,39 @@ database %>%
   kable()
 ```
 
-## Embeding
+## Word Embeding
 
 In order to create the landscape of linguistics as in [@gonzalez23] we
 
-- used the GloVe language model [@pennington14] that represent 6 bilion words with 300-dimensional vector;
-- averaged each dimension whithin each abstract;
-- use tSNE algorithm [@maaten08] in order to reduce dimensions to 2 
+- used the GloVe language model dataset [@pennington14] that represent 6 billion words in 300-dimensional space;
+- averaged values within dimension for all words in each abstract;
+- use t-SNE algorithm [@maaten08] in order to reduce 300 dimensions to two
 
 ## The landscape of linguistic research
 
 ```{r, out.width='100%'}
-df <- read_csv("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/tsne/2023-05-02.csv")
+embedings <- read_csv("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/tsne/2023-05-02.csv")
 
-df |> 
+embedings |> 
   ggplot(aes(V1, V2))+
-  geom_point(size = 0.1)+
+  geom_point(size = 0.1, alpha = 0.2)+
   theme_void()
 ```
 
 ## Phonetics and phonology (based on journal titles)
 
 ```{r, out.width='100%'}
-df |> 
-  mutate(target = str_detect(journal, "[Pp]hon"),
+pattern_for_search <- "[Pp]hon"
+
+embedings |> 
+  distinct(journal) |> 
+  filter(str_detect(journal, pattern_for_search)) |> 
+  pull(journal) |> 
+  str_c(collapse = "; ") ->
+  journals
+
+embedings |> 
+  mutate(target = str_detect(journal, pattern_for_search),
          target_alpha = ifelse(target, 1, 0.2),
          target = ifelse(target, "phonetics", "other"),
          target = factor(target, levels = c("phonetics", "other"))) |> 
@@ -530,11 +543,22 @@ df |>
   theme(legend.position = "none")
 ```
 
+\tiny
+`r journals`
+
 ## Psycholinguistics (based on journal titles)
 
 ```{r, out.width='100%'}
-df |> 
-  mutate(target = str_detect(journal, "[Pp]sych"),
+pattern_for_search <- "[Pp]sych"
+embedings |> 
+  distinct(journal) |> 
+  filter(str_detect(journal, pattern_for_search)) |> 
+  pull(journal) |> 
+  str_c(collapse = "; ") ->
+  journals
+
+embedings |> 
+  mutate(target = str_detect(journal, pattern_for_search),
          target_alpha = ifelse(target, 1, 0.2),
          target = ifelse(target, "psycholinguistics", "other"),
          target = factor(target, levels = c("psycholinguistics", "other"))) |> 
@@ -544,11 +568,106 @@ df |>
   theme(legend.position = "none")
 ```
 
+\tiny
+`r journals`
 
-## East Caucasian research
+## Corpus/comput/quant (based on journal titles)
 
 ```{r, out.width='100%'}
-df |> 
+pattern_for_search <- "([Cc]orp)|([Cc]ompu)|(Machine)|(Quantitative)"
+
+embedings |> 
+  distinct(journal) |> 
+  filter(str_detect(journal, pattern_for_search)) |> 
+  pull(journal) |> 
+  str_c(collapse = "; ") ->
+  journals
+
+embedings |> 
+  mutate(target = str_detect(journal, pattern_for_search),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "cognitive", "other"),
+         target = factor(target, levels = c("cognitive", "other"))) |> 
+  ggplot(aes(V1, V2, color = target, alpha = target_alpha))+
+  geom_point(size = 0.1)+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+\tiny
+`r journals`
+
+## Historical linguistics (based on journal titles)
+
+```{r, out.width='100%'}
+pattern_for_search <- "[Hh]isto"
+
+embedings |> 
+  distinct(journal) |> 
+  filter(str_detect(journal, pattern_for_search)) |> 
+  pull(journal) |> 
+  str_c(collapse = "; ") ->
+  journals
+
+embedings |> 
+  mutate(target = str_detect(journal, pattern_for_search),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "historical", "other"),
+         target = factor(target, levels = c("historical", "other"))) |> 
+  ggplot(aes(V1, V2, color = target, alpha = target_alpha))+
+  geom_point(size = 0.1)+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+\tiny
+`r journals`
+
+## Onomastics (based on journal titles)
+
+```{r, out.width='100%'}
+pattern_for_search <- "[Oo]noma"
+
+embedings |> 
+  distinct(journal) |> 
+  filter(str_detect(journal, pattern_for_search)) |> 
+  pull(journal) |> 
+  str_c(collapse = "; ") ->
+  journals
+
+embedings |> 
+  mutate(target = str_detect(journal, pattern_for_search),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "onomastics", "other"),
+         target = factor(target, levels = c("onomastics", "other"))) |> 
+  ggplot(aes(V1, V2, color = target, alpha = target_alpha))+
+  geom_point(size = 0.1)+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+\tiny
+`r journals`
+
+## Publications by year
+
+```{r, out.width='100%'}
+embedings |> 
+  left_join(database |> select(id, publication_year)) |> 
+  ggplot(aes(V1, V2, color = publication_year))+
+  geom_point(size = 0.1, alpha = 0.3)+
+  theme_void()+
+  labs(color = "")+
+  theme(legend.position = "bottom") +
+  scale_color_steps2(low = "darkgreen", mid = "tomato", high = "lightblue",
+                     midpoint = 1925)
+```
+
+
+## East Caucasian research (based on abstracts)
+
+```{r, out.width='100%'}
+embedings |> 
   mutate(target = str_detect(abstract, "(East Caucasian)|(Daghestanian)|(Dagestanian)|(Daghestan)|(Dagestan)|(Lezgic)|(Andic)|(Nakh)|(Tsezic)"),
          target_alpha = ifelse(target, 1, 0.2),
          target = ifelse(target, "EC research", "other"),
@@ -562,7 +681,7 @@ df |>
 ## Diana Forker
 
 ```{r, out.width='100%'}
-df |> 
+embedings |> 
   mutate(target = str_detect(author, "Diana Forker"),
          target_alpha = ifelse(target, 1, 0.2),
          target = ifelse(target, "Diana", "other"),
@@ -577,6 +696,9 @@ df |>
 
 ## Conclussions
 
+>- We need to explore gathered space
+>- We need to analyze concepts from `OpenAlex`
+>- We need to go bottom up from papers not from the journals
 >- We still need to annotate a lot of journals
 >- Unfortunately journal annotation should be crosschecked
 >- We can not generalize knowledge gathered from journals on the whole field of linguistics: it is universities who make us think that books and chapters in volumes are not significant
