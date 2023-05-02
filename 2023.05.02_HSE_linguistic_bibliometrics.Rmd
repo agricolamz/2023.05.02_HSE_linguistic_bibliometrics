@@ -272,6 +272,8 @@ non_cleaned_database_cols <- ncol(database)
 database |> 
   mutate(abstract = str_remove(abstract, "^Abstract "),
          abstract = str_remove(abstract, "^ABSTRACT "),
+         abstract = str_remove(abstract, "^A B S T R A C T "),
+         abstract = str_remove(abstract, "^a b s t r a c t "),
          abstract_length = nchar(abstract)) |> 
   filter(!is.na(abstract),
          cld2::detect_language(abstract) == "en",
@@ -291,6 +293,7 @@ Let's analyze:
 - papers with authors (remove `r database |> filter(is.na(author)) |> nrow()`)
 - papers with abstracts longer then 250 symbols (remove `r database |> filter(abstract_length < 250) |> nrow()`)
 - papers with abstracts with "No Access" and "Research Article|" notes (remove `r database |> filter(str_detect(abstract, "No Access") | str_detect(abstract, "^Research Article\\|")) |> nrow()`)
+- papers with non-duplicated abstract (remove `r database |> filter(duplicated(tolower(abstract))) |> nrow()`)
 
 \footnotesize
 > Previous articleNext article No AccessPhonology of Alaskan Eskimo, Kuskokwim DialectAnthony MattinaAnthony Mattina Search for more articles by this author PDFPDF PLUS Add to favoritesDownload CitationTrack CitationsPermissionsReprints Share onFacebookTwitterLinkedInRedditEmail SectionsMoreDetailsFiguresReferencesCited by International Journal of American Linguistics Volume 36, Number 1Jan., 1970 Article DOIhttps://doi.org/10.1086/465087 Views: 4Total views on this site PDF download Crossref reports no articles citing this article.
@@ -302,7 +305,8 @@ database |>
          !is.na(author),
          abstract_length >= 250,
          !str_detect(abstract, "No Access"),
-         !str_detect(abstract, "^Research Article\\|")) |> 
+         !str_detect(abstract, "^Research Article\\|"),
+         !duplicated(tolower(abstract))) |> 
   mutate(publication_year = as.double(publication_year),
          cited_by_count = as.double(cited_by_count)) ->
   database
@@ -450,6 +454,9 @@ database |>
 
 # The landscape of linguistic research?
 
+## TF-IDF
+
+
 
 ## 5 keywords gathered by TF-IDF
 
@@ -490,6 +497,81 @@ database %>%
   kable()
 ```
 
+## Embeding
+
+In order to create the landscape of linguistics as in [@gonzalez23] we
+
+- used the GloVe language model [@pennington14] that represent 6 bilion words with 300-dimensional vector;
+- averaged each dimension whithin each abstract;
+- use tSNE algorithm [@maaten08] in order to reduce dimensions to 2 
+
+## The landscape of linguistic research
+
+```{r, out.width='100%'}
+df <- read_csv("/home/agricolamz/work/bureaucracy/linguistic_convergency/journals/repo/tsne/2023-05-02.csv")
+
+df |> 
+  ggplot(aes(V1, V2))+
+  geom_point(size = 0.1)+
+  theme_void()
+```
+
+## Phonetics and phonology (based on journal titles)
+
+```{r, out.width='100%'}
+df |> 
+  mutate(target = str_detect(journal, "[Pp]hon"),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "phonetics", "other"),
+         target = factor(target, levels = c("phonetics", "other"))) |> 
+  ggplot(aes(V1, V2, color = target, alpha = target_alpha))+
+  geom_point(size = 0.1)+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+## Psycholinguistics (based on journal titles)
+
+```{r, out.width='100%'}
+df |> 
+  mutate(target = str_detect(journal, "[Pp]sych"),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "psycholinguistics", "other"),
+         target = factor(target, levels = c("psycholinguistics", "other"))) |> 
+  ggplot(aes(V1, V2, color = target, alpha = target_alpha))+
+  geom_point(size = 0.1)+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+
+## East Caucasian research
+
+```{r, out.width='100%'}
+df |> 
+  mutate(target = str_detect(abstract, "(East Caucasian)|(Daghestanian)|(Dagestanian)|(Daghestan)|(Dagestan)|(Lezgic)|(Andic)|(Nakh)|(Tsezic)"),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "EC research", "other"),
+         target = factor(target, levels = c("EC research", "other"))) |> 
+  ggplot(aes(V1, V2, size = target_alpha, color = target, alpha = target_alpha))+
+  geom_point()+
+  theme_void()+
+  theme(legend.position = "none")
+```
+
+## Diana Forker
+
+```{r, out.width='100%'}
+df |> 
+  mutate(target = str_detect(author, "Diana Forker"),
+         target_alpha = ifelse(target, 1, 0.2),
+         target = ifelse(target, "Diana", "other"),
+         target = factor(target, levels = c("Diana", "other"))) |> 
+  ggplot(aes(V1, V2, size = target_alpha, color = target, alpha = target_alpha))+
+  geom_point()+
+  theme_void()+
+  theme(legend.position = "none")
+```
 
 # Conclussions
 
@@ -497,7 +579,7 @@ database %>%
 
 >- We still need to annotate a lot of journals
 >- Unfortunately journal annotation should be crosschecked
->- We can not generalize knowledge gathered from journals on the whole field: it is universities who make us think that books and chapters in volumes are not significant
+>- We can not generalize knowledge gathered from journals on the whole field of linguistics: it is universities who make us think that books and chapters in volumes are not significant
 
 ## {}
 
