@@ -692,9 +692,9 @@ embedings |>
   theme(legend.position = "none")
 ```
 
-# Conclussions
+# Сonclusion
 
-## Conclussions
+## Сonclusion
 
 >- We need to explore gathered space
 >- We need to analyze concepts from `OpenAlex`
